@@ -15,4 +15,11 @@ spec:
     spec:
       containers:
       - name: piper-tts
-        image: rhasspy/piper
+        image: rhasspy/wyoming-piper:latest
+        args:
+          - --voice
+          - nl_BE-nathalie-medium
+          - --data-dir
+          - /home/piper/.local/share/piper
+          - --download-dir
+          - /home/piper/.local/share/piper
