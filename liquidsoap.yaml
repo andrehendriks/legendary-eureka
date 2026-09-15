@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: liquidsoap-config
+  namespace: airadio
+data:
+  radio.liq: |
+    set("log.stdout",true)
+    music = playlist(mode="random",reload=60,"/radio/music/playlist.m3u")
+    output.icecast(%mp3(bitrate=192),host="192.168.2.5",port=8080,password="sourcepass",mount="/stream.mp3",name="AI Radio",music)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: liquidsoap
+  namespace: airadio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: liquidsoap
+  template:
+    metadata:
+      labels:
+        app: liquidsoap
+    spec:
+      containers:
+      - name: liquidsoap
+        image: savonet/liquidsoap:v2.3.3
+        command: ["liquidsoap","/etc/liquidsoap/radio.liq"]
+        volumeMounts:
+        - name: config
+          mountPath: /etc/liquidsoap
+        - name: music
+          mountPath: /radio/music
+      volumes:
+      - name: config
+        configMap:
+          name: liquidsoap-config
+      - name: music
+        nfs:
+          server: 192.168.2.5
+          path: /volume1/radio/music
