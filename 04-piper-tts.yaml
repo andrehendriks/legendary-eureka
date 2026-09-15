@@ -4,7 +4,8 @@ metadata:
   name: piper-tts
   namespace: airadio
 spec:
-  replicas: 1
+  # Piper is optional and disabled until it is explicitly needed.
+  replicas: 0
   selector:
     matchLabels:
       app: piper-tts
