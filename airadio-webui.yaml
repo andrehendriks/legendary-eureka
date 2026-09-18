@@ -1,0 +1,128 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: airadio-webui
+  namespace: airadio
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: airadio-webui-liquidsoap-scaler
+  namespace: airadio
+rules:
+- apiGroups:
+  - apps
+  resources:
+  - deployments/scale
+  resourceNames:
+  - liquidsoap
+  verbs:
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: airadio-webui-liquidsoap-scaler
+  namespace: airadio
+subjects:
+- kind: ServiceAccount
+  name: airadio-webui
+  namespace: airadio
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: airadio-webui-liquidsoap-scaler
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airadio-webui
+  namespace: airadio
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: airadio-webui
+  template:
+    metadata:
+      labels:
+        app: airadio-webui
+    spec:
+      serviceAccountName: airadio-webui
+      automountServiceAccountToken: true
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: airadio-webui
+        image: ghcr.io/andrehendriks/airadio-webui@sha256:eab1cecd2d331828491c41b9b54550c4b2dd58187f4d8f62a921b12d2f1212be
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 3000
+        env:
+        - name: WEBUI_MODE
+          value: kubernetes
+        - name: KUBERNETES_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: LIQUIDSOAP_HOST
+          value: liquidsoap.airadio.svc.cluster.local
+        - name: LIQUIDSOAP_PORT
+          value: "1234"
+        - name: LIQUIDSOAP_COMMAND_TIMEOUT_MS
+          value: "120000"
+        - name: LIQUIDSOAP_DEPLOYMENT
+          value: liquidsoap
+        - name: ICECAST_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: airadio-endpoints
+              key: ICECAST_HOST
+        - name: ICECAST_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: airadio-endpoints
+              key: ICECAST_PORT
+        - name: ICECAST_MOUNT
+          value: /live
+        volumeMounts:
+        - name: media-library
+          mountPath: /radio/music/Music
+          readOnly: true
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+      volumes:
+      - name: media-library
+        nfs:
+          server: 192.168.2.5
+          path: /volume1/Dj/Music
+          readOnly: true

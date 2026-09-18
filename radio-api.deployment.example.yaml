@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: radio-api
+  namespace: airadio
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: radio-api
+  template:
+    metadata:
+      labels:
+        app: radio-api
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: radio-api
+        image: registry.example.invalid/airadio-api:REPLACE_WITH_IMMUTABLE_TAG
+        ports:
+        - name: http
+          containerPort: 8080
+        env:
+        - name: OLLAMA_HOST
+          value: http://ollama.airadio.svc.cluster.local:11434
+        - name: CORS_ALLOW_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: airadio-endpoints
+              key: CORS_ALLOW_ORIGINS
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: "1"
+            memory: 1Gi

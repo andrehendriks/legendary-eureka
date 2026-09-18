@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airadio-webui
+  namespace: airadio
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: airadio-webui
+  template:
+    metadata:
+      labels:
+        app: airadio-webui
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: airadio-webui
+        image: registry.example.invalid/airadio-webui:REPLACE_WITH_IMMUTABLE_TAG
+        ports:
+        - name: http
+          containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
