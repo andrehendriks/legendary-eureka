@@ -1,8 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$Namespace = "airadio",
-    [string]$ExpectedIcecastHost = "192.168.2.189",
-    [int]$ExpectedIcecastPort = 8000,
+    [string]$ExpectedIcecastHost = "192.168.2.5",
+    [int]$ExpectedIcecastPort = 8030,
     [string]$ExpectedPlaylistPath = "/radio/playlist/playlist.m3u8",
     [string]$ExpectedMediaNfsServer = "192.168.2.5",
     [string]$ExpectedMediaNfsPath = "/volume1/Dj/Music",

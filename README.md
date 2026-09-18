@@ -162,8 +162,8 @@ host. Do not expose `radio-api` or `ollama` directly.
 the kustomization and must never be committed with a real value. Its
 `ICECAST_HOST` and `ICECAST_PORT` environment variables come from
 `airadio-endpoints` and default to the confirmed live endpoint
-`192.168.2.189:8000`, matching the current Icecast Docker Compose mapping
-`8000:8000`. The Liquidsoap 2.3 configuration uses `environment.get` (not
+`192.168.2.5:8030`, the confirmed NAS Icecast endpoint serving the production
+Second Life stream. The Liquidsoap 2.3 configuration uses `environment.get` (not
 `getenv`) to read these process environment values. Do not use `localhost`:
 Liquidsoap runs in Kubernetes and must reach the external host address. For a
 different cluster, set `ICECAST_HOST` to that cluster's proven reachable
@@ -176,7 +176,7 @@ network-check pod:
 ```powershell
 kubectl -n airadio run icecast-network-check --rm -it --restart=Never `
   --image=busybox:1.36 -- sh -ec `
-  'nc -zvw5 192.168.2.189 8000'
+  'nc -zvw5 192.168.2.5 8030'
 ```
 
 Successful TCP connection proves only routing to Icecast; it does not validate
@@ -256,7 +256,7 @@ kubectl -n airadio logs deployment/liquidsoap --tail=100
 
 `.\preflight.ps1` blocks a live rollout if the cluster's
 `airadio-endpoints` ConfigMap differs from the expected
-`192.168.2.189:8000`, if it is a loopback address, or if the rendered
+`192.168.2.5:8030`, if it is a loopback address, or if the rendered
 Liquidsoap configuration does not reference `/radio/playlist/playlist.m3u8`.
 For an intentional non-default endpoint, pass the exact expected values as
 `-ExpectedIcecastHost` and `-ExpectedIcecastPort`; update the ConfigMap in the
