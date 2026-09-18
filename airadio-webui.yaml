@@ -56,7 +56,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: airadio-webui
-        image: ghcr.io/andrehendriks/airadio-webui@sha256:eab1cecd2d331828491c41b9b54550c4b2dd58187f4d8f62a921b12d2f1212be
+        image: ghcr.io/andrehendriks/airadio-webui@sha256:f778787aead11e5b744dee09d3c86d0f1dbe6f721c01079c5e6392c1857f40cd
         imagePullPolicy: IfNotPresent
         ports:
         - name: http

@@ -8,7 +8,7 @@ param(
     [string]$ExpectedPlaylistPath = "/radio/playlist/playlist.m3u8",
     [string]$ExpectedMediaNfsServer = "192.168.2.5",
     [string]$ExpectedMediaNfsPath = "/volume1/Dj/Music",
-    [string]$ExpectedWebUiImage = "ghcr.io/andrehendriks/airadio-webui@sha256:eab1cecd2d331828491c41b9b54550c4b2dd58187f4d8f62a921b12d2f1212be",
+    [string]$ExpectedWebUiImage = "ghcr.io/andrehendriks/airadio-webui@sha256:f778787aead11e5b744dee09d3c86d0f1dbe6f721c01079c5e6392c1857f40cd",
     [switch]$Offline
 )
 
@@ -29,6 +29,18 @@ if ($Offline) {
     }
     if (($renderedManifests -join "`n") -notmatch [regex]::Escape($ExpectedPlaylistPath)) {
         throw "Rendered Liquidsoap configuration does not reference the expected playlist '$ExpectedPlaylistPath'."
+    }
+    foreach ($categoryPlaylist in @(
+        "/radio/playlist/funk.m3u8",
+        "/radio/playlist/gothic.m3u8",
+        "/radio/playlist/hardrock.m3u8",
+        "/radio/playlist/hardstyle.m3u8",
+        "/radio/playlist/hiphop.m3u8",
+        "/radio/playlist/soul.m3u8"
+    )) {
+        if (($renderedManifests -join "`n") -notmatch [regex]::Escape($categoryPlaylist)) {
+            throw "Rendered Liquidsoap configuration does not create the required category playlist '$categoryPlaylist'."
+        }
     }
     $renderedText = $renderedManifests -join "`n"
     if ($renderedText -notmatch [regex]::Escape("mount=`"$ExpectedIcecastMount`"")) {

@@ -24,7 +24,46 @@ data:
     source_file=/radio/playlist-source/playlist.m3u8
     output_file=/radio/playlist/playlist.m3u8
     temporary_file=/radio/playlist/.playlist.m3u8.tmp
+    category_index_dir=/radio/playlist-source/airadio-category-index
     forward_prefix='//stream-vught-nl/Dj/Music/'
+
+    normalize_category() {
+      source_name=$1
+      target_name=$2
+      category_name=$3
+      category_source="$category_index_dir/$source_name"
+      category_output="/radio/playlist/$target_name"
+      category_temporary="/radio/playlist/.$target_name.tmp"
+
+      if [ ! -r "$category_source" ]; then
+        echo "Category playlist source is not readable: $category_source; retaining the last generated category playlist."
+        return
+      fi
+
+      if awk -v root="$MEDIA_LIBRARY_ROOT" -v category="$category_name" '
+        BEGIN {
+          source_prefix = root "/" category "/"
+          output_prefix = "/radio/music/Music/" category "/"
+          tracks = 0
+        }
+        index($0, source_prefix) == 1 {
+          print output_prefix substr($0, length(source_prefix) + 1)
+          tracks++
+        }
+        END {
+          if (tracks == 0) {
+            print "No playable " category " tracks found in category index." > "/dev/stderr"
+            exit 1
+          }
+          print "Normalized " tracks " " category " track(s)." > "/dev/stderr"
+        }
+      ' "$category_source" > "$category_temporary"; then
+        mv "$category_temporary" "$category_output"
+      else
+        rm -f "$category_temporary"
+        echo "Category playlist normalization failed for $category_name; retaining the last generated category playlist."
+      fi
+    }
 
     mkdir -p /radio/playlist
     : > "$output_file"
@@ -52,6 +91,12 @@ data:
         rm -f "$temporary_file"
         echo "Playlist normalization failed; retaining the last generated playlist."
       fi
+      normalize_category "Funk.m3u8" "funk.m3u8" "Funk"
+      normalize_category "Gothic-Funk.m3u8" "gothic.m3u8" "Gothic Funk"
+      normalize_category "HardRock.m3u8" "hardrock.m3u8" "HardRock"
+      normalize_category "Hardstyle.m3u8" "hardstyle.m3u8" "Hardstyle"
+      normalize_category "HipHop.m3u8" "hiphop.m3u8" "HipHop"
+      normalize_category "Soul.m3u8" "soul.m3u8" "Soul"
       sleep 60
     done
 ---
@@ -73,7 +118,7 @@ spec:
       initContainers:
       - name: initialize-generated-playlist
         image: busybox:1.36
-        command: ["sh", "-ec", "mkdir -p /radio/playlist && : > /radio/playlist/playlist.m3u8"]
+        command: ["sh", "-ec", "mkdir -p /radio/playlist && : > /radio/playlist/playlist.m3u8 && : > /radio/playlist/funk.m3u8 && : > /radio/playlist/gothic.m3u8 && : > /radio/playlist/hardrock.m3u8 && : > /radio/playlist/hardstyle.m3u8 && : > /radio/playlist/hiphop.m3u8 && : > /radio/playlist/soul.m3u8"]
         volumeMounts:
         - name: generated-playlist
           mountPath: /radio/playlist
