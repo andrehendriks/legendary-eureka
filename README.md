@@ -133,6 +133,53 @@ the source password. The NFS and Icecast addresses remain external
 dependencies. Move either into Kubernetes only after assigning it a Service,
 then use that Service-DNS name.
 
+### Playlist and media-library mounts
+
+`playlist.m3u8` is read from the existing read-only NFS mount
+`/volume1/radio/music` at `/radio/playlist-source`. The actual audio library is
+a separate, read-only NFS volume mounted at `/radio/library`. Its source is
+configured centrally in `airadio-endpoints`:
+
+| Key | Default | Purpose |
+| --- | --- | --- |
+| `MEDIA_NFS_SERVER` | `192.168.2.5` | Synology NFS server |
+| `MEDIA_NFS_PATH` | `/volume1/Dj/Music` | Expected export for `\\stream-vught-nl\Dj\Music` |
+| `MEDIA_LIBRARY_ROOT` | `/radio/library` | In-pod library root |
+
+Kustomize copies the first two values into the Liquidsoap NFS volume, keeping
+the mount and sidecar configuration consistent. `/volume1/Dj/Music` is the
+Synology-conventional translation of the confirmed Windows share; verify it on
+the NAS and change `MEDIA_NFS_PATH` only if the configured NFS export differs.
+The playlist normalizer only converts lines beginning with
+`//stream-vught-nl/Dj/Music/` or `\\stream-vught-nl\Dj\Music\` to
+`/radio/library/…`; it retains comments, URLs, and every other line unchanged.
+It uses fixed `awk` prefix matching, not shell evaluation, so spaces and
+non-ASCII path bytes remain unchanged. Normalizer logs report unreadable input
+or conversion failures and retain the last generated playlist; Liquidsoap then
+uses its silent `mksafe` fallback.
+
+Kubernetes must mount every declared NFS volume before it starts any container.
+Consequently, a missing NAS export cannot be downgraded by application code:
+the Pod will remain pending with an explicit `FailedMount` event. The NAS
+therefore **must** grant NFS read-only export access for `/volume1/Dj/Music`
+to every Kubernetes node IP (`172.18.0.4`, `172.18.0.6`, `172.18.0.7`, and
+`172.18.0.3` in the current cluster), with the export's required
+root-squash/privilege settings. Verify the deployed read-only mount without
+altering data:
+
+```powershell
+kubectl -n airadio exec deployment/liquidsoap -c playlist-normalizer -- `
+  ls -la /radio/library
+```
+
+The command reads the existing read-only workload mount and does not reveal
+credentials or alter data. Follow it with:
+
+```powershell
+kubectl -n airadio describe pod -l app=liquidsoap
+kubectl -n airadio logs deployment/liquidsoap -c playlist-normalizer --tail=100
+```
+
 The playlist source is wrapped in Liquidsoap's `mksafe`, preserving the
 60-second reload behavior and normal track playback from
 `/radio/music/playlist.m3u8` while emitting a silent fallback when that file
@@ -158,8 +205,8 @@ kubectl -n airadio logs deployment/liquidsoap --tail=100
 `.\preflight.ps1` blocks a live rollout if the cluster's
 `airadio-endpoints` ConfigMap differs from the expected
 `192.168.2.189:8000`, if it is a loopback address, or if the rendered
-Liquidsoap configuration does not reference `/radio/music/playlist.m3u8`. For
-an intentional non-default endpoint, pass the exact expected values as
+Liquidsoap configuration does not reference `/radio/playlist/playlist.m3u8`.
+For an intentional non-default endpoint, pass the exact expected values as
 `-ExpectedIcecastHost` and `-ExpectedIcecastPort`; update the ConfigMap in the
 same change.
 

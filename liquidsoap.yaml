@@ -6,8 +6,52 @@ metadata:
 data:
   radio.liq: |
     set("log.stdout",true)
-    music = mksafe(playlist(mode="random",reload=60,"/radio/music/playlist.m3u8"))
+    music = mksafe(playlist(mode="random",reload=60,"/radio/playlist/playlist.m3u8"))
     output.icecast(%mp3(bitrate=192),host=environment.get(default="192.168.2.189","ICECAST_HOST"),port=int_of_string(default=8000,environment.get(default="8000","ICECAST_PORT")),password=environment.get(default="","ICECAST_PASSWORD"),mount="/stream.mp3",name="AI Radio",music)
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: liquidsoap-playlist-normalizer
+  namespace: airadio
+data:
+  normalize-playlist.sh: |
+    #!/bin/sh
+    set -u
+
+    source_file=/radio/playlist-source/playlist.m3u8
+    output_file=/radio/playlist/playlist.m3u8
+    temporary_file=/radio/playlist/.playlist.m3u8.tmp
+    forward_prefix='//stream-vught-nl/Dj/Music/'
+
+    mkdir -p /radio/playlist
+    : > "$output_file"
+
+    while true; do
+      if [ ! -r "$source_file" ]; then
+        echo "Playlist source is not readable: $source_file; retaining the last generated playlist."
+      elif awk -v root="$MEDIA_LIBRARY_ROOT" -v forward="$forward_prefix" '
+        BEGIN { backward = "\\\\stream-vught-nl\\Dj\\Music\\"; translated = 0 }
+        index($0, forward) == 1 {
+          print root "/" substr($0, length(forward) + 1)
+          translated++
+          next
+        }
+        index($0, backward) == 1 {
+          print root "/" substr($0, length(backward) + 1)
+          translated++
+          next
+        }
+        { print }
+        END { print "Normalized " translated " playlist path(s)." > "/dev/stderr" }
+      ' "$source_file" > "$temporary_file"; then
+        mv "$temporary_file" "$output_file"
+      else
+        rm -f "$temporary_file"
+        echo "Playlist normalization failed; retaining the last generated playlist."
+      fi
+      sleep 60
+    done
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -24,6 +68,13 @@ spec:
       labels:
         app: liquidsoap
     spec:
+      initContainers:
+      - name: initialize-generated-playlist
+        image: busybox:1.36
+        command: ["sh", "-ec", "mkdir -p /radio/playlist && : > /radio/playlist/playlist.m3u8"]
+        volumeMounts:
+        - name: generated-playlist
+          mountPath: /radio/playlist
       containers:
       - name: liquidsoap
         image: savonet/liquidsoap:v2.3.3
@@ -48,8 +99,11 @@ spec:
         - name: config
           mountPath: /etc/liquidsoap
           readOnly: true
-        - name: music
-          mountPath: /radio/music
+        - name: generated-playlist
+          mountPath: /radio/playlist
+          readOnly: true
+        - name: media-library
+          mountPath: /radio/library
           readOnly: true
         startupProbe:
           exec:
@@ -73,12 +127,51 @@ spec:
           limits:
             cpu: "1"
             memory: 1Gi
+      - name: playlist-normalizer
+        image: busybox:1.36
+        command: ["sh", "/usr/local/bin/normalize-playlist.sh"]
+        env:
+        - name: MEDIA_LIBRARY_ROOT
+          valueFrom:
+            configMapKeyRef:
+              name: airadio-endpoints
+              key: MEDIA_LIBRARY_ROOT
+        volumeMounts:
+        - name: normalizer-script
+          mountPath: /usr/local/bin
+          readOnly: true
+        - name: playlist-source
+          mountPath: /radio/playlist-source
+          readOnly: true
+        - name: generated-playlist
+          mountPath: /radio/playlist
+        - name: media-library
+          mountPath: /radio/library
+          readOnly: true
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
       volumes:
       - name: config
         configMap:
           name: liquidsoap-config
-      - name: music
+      - name: normalizer-script
+        configMap:
+          name: liquidsoap-playlist-normalizer
+          defaultMode: 0555
+      - name: playlist-source
         nfs:
           server: 192.168.2.5
           path: /volume1/radio/music
           readOnly: true
+      - name: media-library
+        nfs:
+          server: 192.168.2.5
+          path: /volume1/Dj/Music
+          readOnly: true
+      - name: generated-playlist
+        emptyDir: {}

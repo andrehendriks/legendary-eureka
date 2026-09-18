@@ -7,6 +7,9 @@ data:
   CORS_ALLOW_ORIGINS: https://desktop.stream-vught.eu:8081,http://localhost:8081,http://127.0.0.1:8081
   ICECAST_HOST: 192.168.2.189
   ICECAST_PORT: "8000"
+  MEDIA_LIBRARY_ROOT: /radio/library
+  MEDIA_NFS_PATH: /volume1/Dj/Music
+  MEDIA_NFS_SERVER: 192.168.2.5
   OLLAMA_ORIGINS: https://desktop.stream-vught.eu:8081,http://localhost:8081,http://127.0.0.1:8081
 ---
 apiVersion: v1

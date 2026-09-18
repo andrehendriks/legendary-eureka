@@ -3,7 +3,9 @@ param(
     [string]$Namespace = "airadio",
     [string]$ExpectedIcecastHost = "192.168.2.189",
     [int]$ExpectedIcecastPort = 8000,
-    [string]$ExpectedPlaylistPath = "/radio/music/playlist.m3u8",
+    [string]$ExpectedPlaylistPath = "/radio/playlist/playlist.m3u8",
+    [string]$ExpectedMediaNfsServer = "192.168.2.5",
+    [string]$ExpectedMediaNfsPath = "/volume1/Dj/Music",
     [switch]$Offline
 )
 
@@ -24,6 +26,11 @@ if ($Offline) {
     }
     if (($renderedManifests -join "`n") -notmatch [regex]::Escape($ExpectedPlaylistPath)) {
         throw "Rendered Liquidsoap configuration does not reference the expected playlist '$ExpectedPlaylistPath'."
+    }
+    $renderedText = $renderedManifests -join "`n"
+    if ($renderedText -notmatch [regex]::Escape("server: $ExpectedMediaNfsServer") -or
+        $renderedText -notmatch [regex]::Escape("path: $ExpectedMediaNfsPath")) {
+        throw "Rendered Liquidsoap media NFS volume does not match the expected ${ExpectedMediaNfsServer}:$ExpectedMediaNfsPath export."
     }
     Write-Host "Offline manifest validation passed."
     exit 0
@@ -54,8 +61,13 @@ if ($ollamaPvcPhase -ne "Bound") {
 
 $icecastHost = kubectl -n $Namespace get configmap/airadio-endpoints -o jsonpath='{.data.ICECAST_HOST}'
 $icecastPort = kubectl -n $Namespace get configmap/airadio-endpoints -o jsonpath='{.data.ICECAST_PORT}'
+$mediaNfsServer = kubectl -n $Namespace get configmap/airadio-endpoints -o jsonpath='{.data.MEDIA_NFS_SERVER}'
+$mediaNfsPath = kubectl -n $Namespace get configmap/airadio-endpoints -o jsonpath='{.data.MEDIA_NFS_PATH}'
 if ($icecastHost -match '^(localhost|127\.0\.0\.1|::1)$') {
     throw "Icecast endpoint '$icecastHost' is loopback from the Liquidsoap pod and cannot reach the external Docker-host service."
+}
+if ($mediaNfsServer -ne $ExpectedMediaNfsServer -or $mediaNfsPath -ne $ExpectedMediaNfsPath) {
+    throw "Media NFS export mismatch: airadio-endpoints has ${mediaNfsServer}:$mediaNfsPath; expected ${ExpectedMediaNfsServer}:$ExpectedMediaNfsPath. Confirm the Synology NFS export is reachable from every Kubernetes node before rollout."
 }
 if ($icecastHost -ne $ExpectedIcecastHost -or $icecastPort -ne $ExpectedIcecastPort.ToString()) {
     throw "Icecast endpoint mismatch: airadio-endpoints has ${icecastHost}:${icecastPort}; expected ${ExpectedIcecastHost}:$ExpectedIcecastPort. For an intentional different reachable endpoint, explicitly pass matching -ExpectedIcecastHost/-ExpectedIcecastPort values."

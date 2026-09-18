@@ -6,3 +6,24 @@ resources:
 - 03-liquidsoap.yaml
 - radio-api.yaml
 - 04-webui-gateway.yaml
+replacements:
+- source:
+    kind: ConfigMap
+    name: airadio-endpoints
+    fieldPath: data.MEDIA_NFS_SERVER
+  targets:
+  - select:
+      kind: Deployment
+      name: liquidsoap
+    fieldPaths:
+    - spec.template.spec.volumes.[name=media-library].nfs.server
+- source:
+    kind: ConfigMap
+    name: airadio-endpoints
+    fieldPath: data.MEDIA_NFS_PATH
+  targets:
+  - select:
+      kind: Deployment
+      name: liquidsoap
+    fieldPaths:
+    - spec.template.spec.volumes.[name=media-library].nfs.path
