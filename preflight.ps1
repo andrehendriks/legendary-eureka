@@ -7,7 +7,7 @@ param(
     [string]$ExpectedPlaylistPath = "/radio/playlist/playlist.m3u8",
     [string]$ExpectedMediaNfsServer = "192.168.2.5",
     [string]$ExpectedMediaNfsPath = "/volume1/Dj/Music",
-    [string]$ExpectedWebUiImage = "ghcr.io/andrehendriks/airadio-webui@sha256:b1b1da95075fca653a34f8d9ebb329a719edafd34c7c0075da8d69c95d9535cb",
+    [string]$ExpectedWebUiImage = "ghcr.io/andrehendriks/airadio-webui@sha256:eab1cecd2d331828491c41b9b54550c4b2dd58187f4d8f62a921b12d2f1212be",
     [switch]$Offline
 )
 
@@ -39,6 +39,16 @@ if ($Offline) {
     }
     if ($renderedText -notmatch [regex]::Escape($ExpectedWebUiImage)) {
         throw "Rendered WebUI Deployment does not use the expected immutable image '$ExpectedWebUiImage'."
+    }
+    if ($renderedText -notmatch [regex]::Escape('LIQUIDSOAP_COMMAND_TIMEOUT_MS') -or
+        $renderedText -notmatch [regex]::Escape('value: "120000"')) {
+        throw "Rendered WebUI Deployment does not set LIQUIDSOAP_COMMAND_TIMEOUT_MS to the required bounded 120000 milliseconds."
+    }
+    if ($renderedText -notmatch [regex]::Escape('proxy_read_timeout 130s;') -or
+        $renderedText -notmatch [regex]::Escape('proxy_send_timeout 130s;') -or
+        $renderedText -notmatch [regex]::Escape('nginx.ingress.kubernetes.io/proxy-read-timeout: "130"') -or
+        $renderedText -notmatch [regex]::Escape('nginx.ingress.kubernetes.io/proxy-send-timeout: "130"')) {
+        throw "Rendered gateway and Ingress do not set the required bounded 130-second playlist timeouts."
     }
     Write-Host "Offline manifest validation passed."
     exit 0

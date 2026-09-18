@@ -25,6 +25,16 @@ data:
       server_tokens off;
       client_max_body_size 10m;
 
+      location = /api/playlist {
+        proxy_pass http://${WEBUI_UPSTREAM};
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 130s;
+        proxy_send_timeout 130s;
+      }
+
       location /api/ {
         proxy_pass http://${WEBUI_UPSTREAM};
         proxy_set_header Host $host;
@@ -208,6 +218,9 @@ kind: Ingress
 metadata:
   name: airadio-webui
   namespace: airadio
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "130"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "130"
 spec:
   ingressClassName: nginx
   tls:

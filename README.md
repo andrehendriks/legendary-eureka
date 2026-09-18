@@ -115,6 +115,11 @@ via the internal `liquidsoap` ClusterIP Service on port `1234`. Its playlist
 source is explicitly named `Music` and the listener binds to pod interfaces,
 so the WebUI can use `Music.uri` (with readback validation) and `Music.skip`
 through that private Service without exposing the control port externally.
+`LIQUIDSOAP_COMMAND_TIMEOUT_MS` is explicitly bounded to `120000` milliseconds
+because playlist reloads on the NFS library may take longer than the client
+default. The public `/api/playlist` route has matching 130-second read and
+send timeouts at both the gateway and Ingress; the Ingress annotations belong
+to the Ingress metadata, never the `airadio-webui` Service.
 
 If the GHCR package is private, create a registry credential secret outside
 this repository only if image pulls fail with an authentication error:
