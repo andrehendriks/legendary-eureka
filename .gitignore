@@ -1,0 +1,3 @@
+# Local production files can contain credentials or private image references.
+airadio-runtime-secrets.yaml
+*.production.yaml

@@ -1,34 +1,13 @@
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: radio-api
-  namespace: airadio
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: radio-api
-  template:
-    metadata:
-      labels:
-        app: radio-api
-    spec:
-      containers:
-      - name: radio-api
-        image: python:3.12-slim
-        command: ["sleep","infinity"]
-        env:
-        - name: OLLAMA_HOST
-          value: http://ollama:11434
----
 apiVersion: v1
 kind: Service
 metadata:
   name: radio-api
   namespace: airadio
 spec:
+  type: ClusterIP
   selector:
     app: radio-api
   ports:
-  - port: 8080
+  - name: http
+    port: 8080
     targetPort: 8080

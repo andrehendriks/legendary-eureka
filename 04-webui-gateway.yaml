@@ -1,0 +1,181 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airadio-endpoints
+  namespace: airadio
+data:
+  CORS_ALLOW_ORIGINS: https://desktop.stream-vught.eu:8081,http://localhost:8081,http://127.0.0.1:8081
+  OLLAMA_ORIGINS: https://desktop.stream-vught.eu:8081,http://localhost:8081,http://127.0.0.1:8081
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airadio-webui-gateway
+  namespace: airadio
+data:
+  default.conf.template: |
+    server {
+      listen 8081;
+      server_name _;
+      server_tokens off;
+      client_max_body_size 10m;
+
+      location /api/ {
+        proxy_pass http://${API_UPSTREAM}/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 60s;
+      }
+
+      location /ws/ {
+        proxy_pass http://${API_UPSTREAM}/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 3600s;
+      }
+
+      location /stream/ {
+        proxy_pass http://${STREAM_UPSTREAM}/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+      }
+
+      location / {
+        proxy_pass http://${WEBUI_UPSTREAM};
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airadio-webui-gateway
+  namespace: airadio
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: airadio-webui-gateway
+  template:
+    metadata:
+      labels:
+        app: airadio-webui-gateway
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: nginx
+        image: nginx:1.27.5-alpine
+        ports:
+        - name: http
+          containerPort: 8081
+        env:
+        - name: API_UPSTREAM
+          value: radio-api.airadio.svc.cluster.local:8080
+        - name: STREAM_UPSTREAM
+          value: radio-api.airadio.svc.cluster.local:8080
+        - name: WEBUI_UPSTREAM
+          value: airadio-webui.airadio.svc.cluster.local:8080
+        volumeMounts:
+        - name: config
+          mountPath: /etc/nginx/templates
+          readOnly: true
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 3
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 20
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+      volumes:
+      - name: config
+        configMap:
+          name: airadio-webui-gateway
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airadio-webui-gateway
+  namespace: airadio
+spec:
+  type: ClusterIP
+  selector:
+    app: airadio-webui-gateway
+  ports:
+  - name: http
+    port: 8081
+    targetPort: 8081
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airadio-webui
+  namespace: airadio
+spec:
+  selector:
+    app: airadio-webui
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: airadio-webui
+  namespace: airadio
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - desktop.stream-vught.eu
+    secretName: desktop-stream-vught-eu-tls
+  rules:
+  - host: desktop.stream-vught.eu
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: airadio-webui-gateway
+            port:
+              name: http
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: airadio-webui-gateway
+  namespace: airadio
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: airadio-webui-gateway

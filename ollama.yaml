@@ -42,10 +42,35 @@ spec:
       - name: ollama
         image: ollama/ollama:latest
         ports:
-        - containerPort: 11434
+        - name: http
+          containerPort: 11434
+        env:
+        - name: OLLAMA_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: airadio-endpoints
+              key: OLLAMA_ORIGINS
         volumeMounts:
         - name: ollama-storage
           mountPath: /root/.ollama
+        readinessProbe:
+          httpGet:
+            path: /api/tags
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 20
+        resources:
+          requests:
+            cpu: 500m
+            memory: 2Gi
+          limits:
+            cpu: "2"
+            memory: 8Gi
       volumes:
       - name: ollama-storage
         persistentVolumeClaim:
@@ -60,5 +85,6 @@ spec:
   selector:
     app: ollama
   ports:
-  - port: 11434
-    targetPort: 11434
+  - name: http
+    port: 11434
+    targetPort: http
