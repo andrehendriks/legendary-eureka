@@ -1,8 +1,9 @@
 [CmdletBinding()]
 param(
     [string]$Namespace = "airadio",
-    [string]$ExpectedIcecastHost = "192.168.2.5",
+    [string]$ExpectedIcecastHost = "192.168.2.189",
     [int]$ExpectedIcecastPort = 8000,
+    [string]$ExpectedPlaylistPath = "/radio/music/playlist.m3u8",
     [switch]$Offline
 )
 
@@ -20,6 +21,9 @@ if ($Offline) {
     if ($renderedIcecastHost -ne $ExpectedIcecastHost -or
         $renderedIcecastPort -ne $ExpectedIcecastPort.ToString()) {
         throw "Rendered ICECAST_HOST/ICECAST_PORT does not match the expected ${ExpectedIcecastHost}:$ExpectedIcecastPort deployment."
+    }
+    if (($renderedManifests -join "`n") -notmatch [regex]::Escape($ExpectedPlaylistPath)) {
+        throw "Rendered Liquidsoap configuration does not reference the expected playlist '$ExpectedPlaylistPath'."
     }
     Write-Host "Offline manifest validation passed."
     exit 0
@@ -50,8 +54,11 @@ if ($ollamaPvcPhase -ne "Bound") {
 
 $icecastHost = kubectl -n $Namespace get configmap/airadio-endpoints -o jsonpath='{.data.ICECAST_HOST}'
 $icecastPort = kubectl -n $Namespace get configmap/airadio-endpoints -o jsonpath='{.data.ICECAST_PORT}'
+if ($icecastHost -match '^(localhost|127\.0\.0\.1|::1)$') {
+    throw "Icecast endpoint '$icecastHost' is loopback from the Liquidsoap pod and cannot reach the external Docker-host service."
+}
 if ($icecastHost -ne $ExpectedIcecastHost -or $icecastPort -ne $ExpectedIcecastPort.ToString()) {
-    throw "Icecast endpoint mismatch: airadio-endpoints has ${icecastHost}:${icecastPort}; expected ${ExpectedIcecastHost}:$ExpectedIcecastPort. The current Icecast Compose publishes 8000:8000, so use port 8000 or explicitly pass matching -ExpectedIcecastHost/-ExpectedIcecastPort values."
+    throw "Icecast endpoint mismatch: airadio-endpoints has ${icecastHost}:${icecastPort}; expected ${ExpectedIcecastHost}:$ExpectedIcecastPort. For an intentional different reachable endpoint, explicitly pass matching -ExpectedIcecastHost/-ExpectedIcecastPort values."
 }
 
 $apiImage = kubectl -n $Namespace get deployment/radio-api -o jsonpath='{.spec.template.spec.containers[0].image}'

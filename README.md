@@ -110,17 +110,33 @@ host. Do not expose `radio-api` or `ollama` directly.
 `airadio-runtime-secrets`; the example secret is intentionally excluded from
 the kustomization and must never be committed with a real value. Its
 `ICECAST_HOST` and `ICECAST_PORT` environment variables come from
-`airadio-endpoints` and default to `192.168.2.5:8000`, matching the current
-Icecast Docker Compose mapping `8000:8000`. The Liquidsoap 2.3 configuration
-uses `environment.get` (not `getenv`) to read these process environment
-values. Do not use `localhost`: Liquidsoap runs in Kubernetes and must reach
-the external Icecast host address. The NFS and Icecast addresses remain
-external dependencies. Move either into Kubernetes only after assigning it a
-Service, then use that Service-DNS name.
+`airadio-endpoints` and default to the confirmed live endpoint
+`192.168.2.189:8000`, matching the current Icecast Docker Compose mapping
+`8000:8000`. The Liquidsoap 2.3 configuration uses `environment.get` (not
+`getenv`) to read these process environment values. Do not use `localhost`:
+Liquidsoap runs in Kubernetes and must reach the external host address. For a
+different cluster, set `ICECAST_HOST` to that cluster's proven reachable
+address and invoke preflight with the same `-ExpectedIcecastHost` value.
+
+To diagnose this path without exposing credentials or changing a long-lived
+workload, an operator can create and automatically delete a short-lived
+network-check pod:
+
+```powershell
+kubectl -n airadio run icecast-network-check --rm -it --restart=Never `
+  --image=busybox:1.36 -- sh -ec `
+  'nc -zvw5 192.168.2.189 8000'
+```
+
+Successful TCP connection proves only routing to Icecast; it does not validate
+the source password. The NFS and Icecast addresses remain external
+dependencies. Move either into Kubernetes only after assigning it a Service,
+then use that Service-DNS name.
 
 The playlist source is wrapped in Liquidsoap's `mksafe`, preserving the
-60-second reload behavior and normal track playback while emitting a silent
-fallback when `playlist.m3u` is empty, absent, or temporarily invalid. This
+60-second reload behavior and normal track playback from
+`/radio/music/playlist.m3u8` while emitting a silent fallback when that file
+is empty, absent, or temporarily invalid. This
 prevents a missing playlist from making the source fallible and crash-looping
 the pod. The Liquidsoap startup, readiness, and liveness probes therefore
 check that the PID 1 Liquidsoap process is running; readiness deliberately
@@ -141,9 +157,11 @@ kubectl -n airadio logs deployment/liquidsoap --tail=100
 
 `.\preflight.ps1` blocks a live rollout if the cluster's
 `airadio-endpoints` ConfigMap differs from the expected
-`192.168.2.5:8000`. For an intentional non-default endpoint, pass the exact
-expected values as `-ExpectedIcecastHost` and `-ExpectedIcecastPort`; update
-the ConfigMap in the same change.
+`192.168.2.189:8000`, if it is a loopback address, or if the rendered
+Liquidsoap configuration does not reference `/radio/music/playlist.m3u8`. For
+an intentional non-default endpoint, pass the exact expected values as
+`-ExpectedIcecastHost` and `-ExpectedIcecastPort`; update the ConfigMap in the
+same change.
 
 ## Operator blockers
 
