@@ -3,6 +3,7 @@ param(
     [string]$Namespace = "airadio",
     [string]$ExpectedIcecastHost = "192.168.2.5",
     [int]$ExpectedIcecastPort = 8030,
+    [string]$ExpectedIcecastMount = "/live",
     [string]$ExpectedPlaylistPath = "/radio/playlist/playlist.m3u8",
     [string]$ExpectedMediaNfsServer = "192.168.2.5",
     [string]$ExpectedMediaNfsPath = "/volume1/Dj/Music",
@@ -29,6 +30,9 @@ if ($Offline) {
         throw "Rendered Liquidsoap configuration does not reference the expected playlist '$ExpectedPlaylistPath'."
     }
     $renderedText = $renderedManifests -join "`n"
+    if ($renderedText -notmatch [regex]::Escape("mount=`"$ExpectedIcecastMount`"")) {
+        throw "Rendered Liquidsoap configuration does not use the expected Icecast mount '$ExpectedIcecastMount'."
+    }
     if ($renderedText -notmatch [regex]::Escape("server: $ExpectedMediaNfsServer") -or
         $renderedText -notmatch [regex]::Escape("path: $ExpectedMediaNfsPath")) {
         throw "Rendered Liquidsoap media NFS volume does not match the expected ${ExpectedMediaNfsServer}:$ExpectedMediaNfsPath export."

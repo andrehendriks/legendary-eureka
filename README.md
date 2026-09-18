@@ -163,7 +163,7 @@ the kustomization and must never be committed with a real value. Its
 `ICECAST_HOST` and `ICECAST_PORT` environment variables come from
 `airadio-endpoints` and default to the confirmed live endpoint
 `192.168.2.5:8030`, the confirmed NAS Icecast endpoint serving the production
-Second Life stream. The Liquidsoap 2.3 configuration uses `environment.get` (not
+Second Life stream on mount `/live`. The Liquidsoap 2.3 configuration uses `environment.get` (not
 `getenv`) to read these process environment values. Do not use `localhost`:
 Liquidsoap runs in Kubernetes and must reach the external host address. For a
 different cluster, set `ICECAST_HOST` to that cluster's proven reachable

@@ -85,7 +85,7 @@ spec:
               name: airadio-endpoints
               key: ICECAST_PORT
         - name: ICECAST_MOUNT
-          value: /stream.mp3
+          value: /live
         volumeMounts:
         - name: media-library
           mountPath: /radio/music/Music
