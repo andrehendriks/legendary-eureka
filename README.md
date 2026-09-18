@@ -215,6 +215,17 @@ non-ASCII path bytes remain unchanged. Normalizer logs report unreadable input
 or conversion failures and retain the last generated playlist; Liquidsoap then
 uses its silent `mksafe` fallback.
 
+The all-music baseline remains the UTF-8
+`/radio/playlist/playlist.m3u8`. The normalizer also atomically copies the
+existing UTF-8 category indexes from
+`/radio/playlist-source/airadio-category-index` to Liquidsoap-visible,
+playable category M3U8 files: `funk.m3u8`, `gothic.m3u8`,
+`hardrock.m3u8`, `hardstyle.m3u8`, `hiphop.m3u8`, and `soul.m3u8`.
+Their entries are restricted to the matching category and translated to
+`/radio/music/Music/...`, which is the same read-only library mounted by
+Liquidsoap. The WebUI may select only these generated `.m3u8` files; it must
+not send a category directory to `Music.uri`.
+
 ### Static Icecast genre
 
 The stable single-output Liquidsoap stream always publishes:
