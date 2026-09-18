@@ -118,6 +118,15 @@ the external Icecast host address. The NFS and Icecast addresses remain
 external dependencies. Move either into Kubernetes only after assigning it a
 Service, then use that Service-DNS name.
 
+The playlist source is wrapped in Liquidsoap's `mksafe`, preserving the
+60-second reload behavior and normal track playback while emitting a silent
+fallback when `playlist.m3u` is empty, absent, or temporarily invalid. This
+prevents a missing playlist from making the source fallible and crash-looping
+the pod. The Liquidsoap startup, readiness, and liveness probes therefore
+check that the PID 1 Liquidsoap process is running; readiness deliberately
+does not require a non-empty playlist because silent fallback audio is a
+healthy, recoverable state.
+
 If Icecast source authentication returns HTTP 401, set
 `airadio-runtime-secrets.ICECAST_PASSWORD` to exactly the Icecast
 `<source-password>` value; it is not the Icecast admin password. Apply the
