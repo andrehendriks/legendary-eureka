@@ -88,9 +88,31 @@ host. Do not expose `radio-api` or `ollama` directly.
 
 `03-liquidsoap.yaml` now reads `ICECAST_PASSWORD` only from
 `airadio-runtime-secrets`; the example secret is intentionally excluded from
-the kustomization and must never be committed with a real value. The NFS and
-Icecast addresses remain external dependencies. Move either into Kubernetes
-only after assigning it a Service, then use that Service-DNS name.
+the kustomization and must never be committed with a real value. Its
+`ICECAST_HOST` and `ICECAST_PORT` environment variables come from
+`airadio-endpoints` and default to `192.168.2.5:8000`, matching the current
+Icecast Docker Compose mapping `8000:8000`. Do not use `localhost`: Liquidsoap
+runs in Kubernetes and must reach the external Icecast host address. The NFS
+and Icecast addresses remain external dependencies. Move either into
+Kubernetes only after assigning it a Service, then use that Service-DNS name.
+
+If Icecast source authentication returns HTTP 401, set
+`airadio-runtime-secrets.ICECAST_PASSWORD` to exactly the Icecast
+`<source-password>` value; it is not the Icecast admin password. Apply the
+updated manifests and restart Liquidsoap:
+
+```powershell
+kubectl apply -k .
+kubectl -n airadio rollout restart deployment/liquidsoap
+kubectl -n airadio rollout status deployment/liquidsoap
+kubectl -n airadio logs deployment/liquidsoap --tail=100
+```
+
+`.\preflight.ps1` blocks a live rollout if the cluster's
+`airadio-endpoints` ConfigMap differs from the expected
+`192.168.2.5:8000`. For an intentional non-default endpoint, pass the exact
+expected values as `-ExpectedIcecastHost` and `-ExpectedIcecastPort`; update
+the ConfigMap in the same change.
 
 ## Operator blockers
 

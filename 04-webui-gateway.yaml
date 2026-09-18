@@ -5,6 +5,8 @@ metadata:
   namespace: airadio
 data:
   CORS_ALLOW_ORIGINS: https://desktop.stream-vught.eu:8081,http://localhost:8081,http://127.0.0.1:8081
+  ICECAST_HOST: 192.168.2.5
+  ICECAST_PORT: "8000"
   OLLAMA_ORIGINS: https://desktop.stream-vught.eu:8081,http://localhost:8081,http://127.0.0.1:8081
 ---
 apiVersion: v1

@@ -7,7 +7,7 @@ data:
   radio.liq: |
     set("log.stdout",true)
     music = playlist(mode="random",reload=60,"/radio/music/playlist.m3u")
-    output.icecast(%mp3(bitrate=192),host="192.168.2.5",port=8080,password=getenv("ICECAST_PASSWORD",""),mount="/stream.mp3",name="AI Radio",music)
+    output.icecast(%mp3(bitrate=192),host=getenv("ICECAST_HOST","192.168.2.5"),port=int_of_string(getenv("ICECAST_PORT","8000")),password=getenv("ICECAST_PASSWORD",""),mount="/stream.mp3",name="AI Radio",music)
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -34,6 +34,16 @@ spec:
             secretKeyRef:
               name: airadio-runtime-secrets
               key: ICECAST_PASSWORD
+        - name: ICECAST_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: airadio-endpoints
+              key: ICECAST_HOST
+        - name: ICECAST_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: airadio-endpoints
+              key: ICECAST_PORT
         volumeMounts:
         - name: config
           mountPath: /etc/liquidsoap
