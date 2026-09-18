@@ -104,12 +104,17 @@ repository deliberately provides no destructive deletion command.
 The bundled WebUI has label `app: airadio-webui`, listens on container port
 `3000`, and is reached by the gateway through the existing `airadio-webui`
 Service on port `8080`. It runs with `WEBUI_MODE=kubernetes`, receives only
-the in-cluster Liquidsoap/Icecast endpoints it requires, and uses the
+the in-cluster Liquidsoap/Icecast endpoints it requires, and mounts the
+read-only media library at `/radio/music/Music` for its playlist and file APIs.
+It uses the
 namespace-scoped `airadio-webui` ServiceAccount. Its Role permits only
-`get`, `patch`, and `update` on `deployments/scale` for the single
+`patch` on `deployments/scale` for the single
 `liquidsoap` Deployment in namespace `airadio`; it cannot access other
 resources or namespaces. Liquidsoap exposes its telnet control endpoint only
-via the internal `liquidsoap` ClusterIP Service on port `1234`.
+via the internal `liquidsoap` ClusterIP Service on port `1234`. Its playlist
+source is explicitly named `Music` and the listener binds to pod interfaces,
+so the WebUI can use `Music.uri` (with readback validation) and `Music.skip`
+through that private Service without exposing the control port externally.
 
 If the GHCR package is private, create a registry credential secret outside
 this repository only if image pulls fail with an authentication error:
@@ -192,8 +197,9 @@ configured centrally in `airadio-endpoints`:
 | `MEDIA_NFS_PATH` | `/volume1/Dj/Music` | Expected export for `\\stream-vught-nl\Dj\Music` |
 | `MEDIA_LIBRARY_ROOT` | `/radio/library` | In-pod library root |
 
-Kustomize copies the first two values into the Liquidsoap NFS volume, keeping
-the mount and sidecar configuration consistent. `/volume1/Dj/Music` is the
+Kustomize copies the first two values into the Liquidsoap and WebUI NFS
+volumes, keeping playlist controls and file browsing on the same read-only
+library. `/volume1/Dj/Music` is the
 Synology-conventional translation of the confirmed Windows share; verify it on
 the NAS and change `MEDIA_NFS_PATH` only if the configured NFS export differs.
 The playlist normalizer only converts lines beginning with

@@ -18,6 +18,11 @@ replacements:
       name: liquidsoap
     fieldPaths:
     - spec.template.spec.volumes.[name=media-library].nfs.server
+  - select:
+      kind: Deployment
+      name: airadio-webui
+    fieldPaths:
+    - spec.template.spec.volumes.[name=media-library].nfs.server
 - source:
     kind: ConfigMap
     name: airadio-endpoints
@@ -26,5 +31,10 @@ replacements:
   - select:
       kind: Deployment
       name: liquidsoap
+    fieldPaths:
+    - spec.template.spec.volumes.[name=media-library].nfs.path
+  - select:
+      kind: Deployment
+      name: airadio-webui
     fieldPaths:
     - spec.template.spec.volumes.[name=media-library].nfs.path

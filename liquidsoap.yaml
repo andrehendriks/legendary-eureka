@@ -6,7 +6,8 @@ metadata:
 data:
   radio.liq: |
     set("log.stdout",true)
-    Music = mksafe(playlist(mode="random",reload=60,"/radio/playlist/playlist.m3u8"))
+    Music = mksafe(playlist(id="Music",mode="random",reload=60,"/radio/playlist/playlist.m3u8"))
+    settings.server.telnet.bind_addr := "0.0.0.0"
     server.telnet(port=1234)
     output.icecast(%mp3(bitrate=192),host=environment.get(default="192.168.2.189","ICECAST_HOST"),port=int_of_string(default=8000,environment.get(default="8000","ICECAST_PORT")),password=environment.get(default="","ICECAST_PASSWORD"),mount="/stream.mp3",name="AI Radio",Music)
 ---
