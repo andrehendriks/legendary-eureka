@@ -88,6 +88,45 @@ spec:
       securityContext:
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+      - name: wait-for-upstream-dns
+        image: busybox:1.36
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        - -ec
+        - |
+          for upstream in \
+            airadio-webui.airadio.svc.cluster.local \
+            radio-api.airadio.svc.cluster.local; do
+            attempt=0
+            until nslookup "$upstream" >/dev/null 2>&1; do
+              attempt=$((attempt + 1))
+              if [ "$attempt" -ge 60 ]; then
+                echo "Timed out waiting for DNS resolution of $upstream after 120 seconds" >&2
+                exit 1
+              fi
+              echo "Waiting for DNS resolution of $upstream (attempt $attempt/60)" >&2
+              sleep 2
+            done
+            echo "Resolved $upstream" >&2
+          done
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65532
+          runAsGroup: 65532
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 50m
+            memory: 32Mi
       containers:
       - name: nginx
         image: nginx:1.27.5-alpine
