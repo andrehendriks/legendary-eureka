@@ -111,10 +111,12 @@ host. Do not expose `radio-api` or `ollama` directly.
 the kustomization and must never be committed with a real value. Its
 `ICECAST_HOST` and `ICECAST_PORT` environment variables come from
 `airadio-endpoints` and default to `192.168.2.5:8000`, matching the current
-Icecast Docker Compose mapping `8000:8000`. Do not use `localhost`: Liquidsoap
-runs in Kubernetes and must reach the external Icecast host address. The NFS
-and Icecast addresses remain external dependencies. Move either into
-Kubernetes only after assigning it a Service, then use that Service-DNS name.
+Icecast Docker Compose mapping `8000:8000`. The Liquidsoap 2.3 configuration
+uses `environment.get` (not `getenv`) to read these process environment
+values. Do not use `localhost`: Liquidsoap runs in Kubernetes and must reach
+the external Icecast host address. The NFS and Icecast addresses remain
+external dependencies. Move either into Kubernetes only after assigning it a
+Service, then use that Service-DNS name.
 
 If Icecast source authentication returns HTTP 401, set
 `airadio-runtime-secrets.ICECAST_PASSWORD` to exactly the Icecast
