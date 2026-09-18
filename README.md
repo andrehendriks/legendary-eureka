@@ -215,6 +215,18 @@ non-ASCII path bytes remain unchanged. Normalizer logs report unreadable input
 or conversion failures and retain the last generated playlist; Liquidsoap then
 uses its silent `mksafe` fallback.
 
+### Static Icecast genre
+
+The stable single-output Liquidsoap stream always publishes:
+
+```text
+Funk, Gothic Funk, HardRock, Hardstyle, HipHop, Soul
+```
+
+This list contains only selectable music categories. `All Music` is a selector,
+not a genre, and `Jonkheer Andreas Hendriks` is a library folder, not a
+selectable category. WebUI selection continues to control the existing audio
+playlist without changing this static `/live` metadata.
 Kubernetes must mount every declared NFS volume before it starts any container.
 Consequently, a missing NAS export cannot be downgraded by application code:
 the Pod will remain pending with an explicit `FailedMount` event. The NAS

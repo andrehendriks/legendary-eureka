@@ -4,6 +4,7 @@ param(
     [string]$ExpectedIcecastHost = "192.168.2.5",
     [int]$ExpectedIcecastPort = 8030,
     [string]$ExpectedIcecastMount = "/live",
+    [string]$ExpectedIcecastGenre = "Funk, Gothic Funk, HardRock, Hardstyle, HipHop, Soul",
     [string]$ExpectedPlaylistPath = "/radio/playlist/playlist.m3u8",
     [string]$ExpectedMediaNfsServer = "192.168.2.5",
     [string]$ExpectedMediaNfsPath = "/volume1/Dj/Music",
@@ -39,6 +40,9 @@ if ($Offline) {
     }
     if ($renderedText -notmatch [regex]::Escape($ExpectedWebUiImage)) {
         throw "Rendered WebUI Deployment does not use the expected immutable image '$ExpectedWebUiImage'."
+    }
+    if ($renderedText -notmatch [regex]::Escape("genre=`"$ExpectedIcecastGenre`"")) {
+        throw "Rendered Liquidsoap configuration does not use the expected static Icecast genre '$ExpectedIcecastGenre'."
     }
     if ($renderedText -notmatch [regex]::Escape('LIQUIDSOAP_COMMAND_TIMEOUT_MS') -or
         $renderedText -notmatch [regex]::Escape('value: "120000"')) {
