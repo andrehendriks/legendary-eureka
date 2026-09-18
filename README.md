@@ -35,11 +35,12 @@ manage the immutable `ollama-pvc` specification: it reuses the existing
 `ollama-pvc` unchanged and therefore cannot fail by trying to alter its access
 mode, storage class, or requested capacity.
 
-The API and WebUI example Deployments are contracts, not deployable images.
-Copy each example to a private, ignored production overlay, replace its
+The API Deployment example remains a contract, not a deployable image. Copy
+it to a private, ignored production overlay, replace its
 `registry.example.invalid/...:REPLACE_WITH_IMMUTABLE_TAG` image with the
 verified immutable image digest, and adapt only its health endpoint if the
-application does not expose the documented endpoint.
+application does not expose the documented endpoint. The WebUI Deployment is
+included in the default bundle with its published immutable digest.
 
 ```powershell
 # 1. Confirm the manifests are structurally valid without a cluster.
@@ -55,11 +56,10 @@ Copy-Item airadio-runtime-secrets.example.yaml airadio-runtime-secrets.yaml
 # Edit airadio-runtime-secrets.yaml; never commit this file.
 kubectl apply -f airadio-runtime-secrets.yaml
 
-# 4. Create/update application Deployments from private copies of:
-#    radio-api.deployment.example.yaml and airadio-webui.deployment.example.yaml
-#    after replacing both example images with immutable image digests.
+# 4. Create/update the API Deployment from a private copy of
+#    radio-api.deployment.example.yaml after replacing its example image
+#    with an immutable image digest. The WebUI ships in kustomization.yaml.
 kubectl apply -f radio-api.deployment.production.yaml
-kubectl apply -f airadio-webui.deployment.production.yaml
 
 # 5. Create the TLS secret from the certificate and private key obtained by the operator.
 kubectl -n airadio create secret tls desktop-stream-vught-eu-tls `
@@ -72,6 +72,7 @@ kubectl -n airadio create secret tls desktop-stream-vught-eu-tls `
 kubectl apply -k .
 kubectl -n airadio rollout status deployment/ollama
 kubectl -n airadio rollout status deployment/liquidsoap
+kubectl -n airadio rollout status deployment/airadio-webui
 kubectl -n airadio rollout status deployment/airadio-webui-gateway
 ```
 
@@ -91,12 +92,24 @@ from `ollama-pvc` to `ollama-pvc-nfs` and roll out the Deployment. Keep the old
 claim and PV until the migrated pod is healthy and the data is verified; this
 repository deliberately provides no destructive deletion command.
 
-The real WebUI must have label `app: airadio-webui`, listen on port `8080`,
-and use only relative `/api`, `/ws`, and `/stream` URLs. The real radio API
+The bundled WebUI has label `app: airadio-webui`, listens on container port
+`3000`, and is reached by the gateway through the existing `airadio-webui`
+Service on port `8080`. It runs with `WEBUI_MODE=kubernetes`, receives only
+the in-cluster Liquidsoap/Icecast endpoints it requires, and uses the
+namespace-scoped `airadio-webui` ServiceAccount. Its Role permits only
+`get`, `patch`, and `update` on `deployments/scale` for the single
+`liquidsoap` Deployment in namespace `airadio`; it cannot access other
+resources or namespaces. Liquidsoap exposes its telnet control endpoint only
+via the internal `liquidsoap` ClusterIP Service on port `1234`.
+
+If the GHCR package is private, create a registry credential secret outside
+this repository, then add `imagePullSecrets: [{ name:
+airadio-webui-registry }]` to a reviewed private overlay for the WebUI
+Deployment. Do not create or commit registry credentials here. The real radio API
 must have label `app: radio-api`, listen on port `8080`, provide `GET
 /healthz`, and honor `OLLAMA_HOST` and `CORS_ALLOW_ORIGINS`. The WebUI must
-also provide `GET /`. These are hard blockers: no application image or source
-exists in this repository, so they cannot be completed here.
+also provide `GET /`. The API image/source remains a hard blocker; the WebUI
+image is now provided by the default bundle.
 
 The cluster ingress controller must be NGINX-compatible and expose its HTTPS
 listener through host/NAT port `8081`. Point

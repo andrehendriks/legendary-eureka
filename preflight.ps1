@@ -6,6 +6,7 @@ param(
     [string]$ExpectedPlaylistPath = "/radio/playlist/playlist.m3u8",
     [string]$ExpectedMediaNfsServer = "192.168.2.5",
     [string]$ExpectedMediaNfsPath = "/volume1/Dj/Music",
+    [string]$ExpectedWebUiImage = "ghcr.io/andrehendriks/airadio-webui@sha256:3206a0f2c05d34002b806f22fb62a84d95f3a54363f3adb547039ace8f71dbbb",
     [switch]$Offline
 )
 
@@ -31,6 +32,9 @@ if ($Offline) {
     if ($renderedText -notmatch [regex]::Escape("server: $ExpectedMediaNfsServer") -or
         $renderedText -notmatch [regex]::Escape("path: $ExpectedMediaNfsPath")) {
         throw "Rendered Liquidsoap media NFS volume does not match the expected ${ExpectedMediaNfsServer}:$ExpectedMediaNfsPath export."
+    }
+    if ($renderedText -notmatch [regex]::Escape($ExpectedWebUiImage)) {
+        throw "Rendered WebUI Deployment does not use the expected immutable image '$ExpectedWebUiImage'."
     }
     Write-Host "Offline manifest validation passed."
     exit 0
@@ -78,6 +82,9 @@ $webUiImage = kubectl -n $Namespace get deployment/airadio-webui -o jsonpath='{.
 if ($apiImage -match 'registry\.example\.invalid|python:3\.12-slim|REPLACE_' -or
     $webUiImage -match 'registry\.example\.invalid|REPLACE_') {
     throw "Application Deployment still uses an example or placeholder image."
+}
+if ($webUiImage -ne $ExpectedWebUiImage) {
+    throw "WebUI image mismatch: deployment has '$webUiImage'; expected the approved immutable image '$ExpectedWebUiImage'."
 }
 
 Write-Host "Preflight passed for context '$context'."

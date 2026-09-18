@@ -6,8 +6,9 @@ metadata:
 data:
   radio.liq: |
     set("log.stdout",true)
-    music = mksafe(playlist(mode="random",reload=60,"/radio/playlist/playlist.m3u8"))
-    output.icecast(%mp3(bitrate=192),host=environment.get(default="192.168.2.189","ICECAST_HOST"),port=int_of_string(default=8000,environment.get(default="8000","ICECAST_PORT")),password=environment.get(default="","ICECAST_PASSWORD"),mount="/stream.mp3",name="AI Radio",music)
+    Music = mksafe(playlist(mode="random",reload=60,"/radio/playlist/playlist.m3u8"))
+    server.telnet(port=1234)
+    output.icecast(%mp3(bitrate=192),host=environment.get(default="192.168.2.189","ICECAST_HOST"),port=int_of_string(default=8000,environment.get(default="8000","ICECAST_PORT")),password=environment.get(default="","ICECAST_PASSWORD"),mount="/stream.mp3",name="AI Radio",Music)
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -79,6 +80,9 @@ spec:
       - name: liquidsoap
         image: savonet/liquidsoap:v2.3.3
         command: ["liquidsoap","/etc/liquidsoap/radio.liq"]
+        ports:
+        - name: control
+          containerPort: 1234
         env:
         - name: ICECAST_PASSWORD
           valueFrom:
@@ -104,6 +108,9 @@ spec:
           readOnly: true
         - name: media-library
           mountPath: /radio/library
+          readOnly: true
+        - name: media-library
+          mountPath: /radio/music/Music
           readOnly: true
         startupProbe:
           exec:
@@ -175,3 +182,17 @@ spec:
           readOnly: true
       - name: generated-playlist
         emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: liquidsoap
+  namespace: airadio
+spec:
+  type: ClusterIP
+  selector:
+    app: liquidsoap
+  ports:
+  - name: control
+    port: 1234
+    targetPort: control

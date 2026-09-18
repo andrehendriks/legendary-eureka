@@ -6,6 +6,7 @@ resources:
 - 03-liquidsoap.yaml
 - radio-api.yaml
 - 04-webui-gateway.yaml
+- airadio-webui.yaml
 replacements:
 - source:
     kind: ConfigMap
