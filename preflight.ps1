@@ -7,7 +7,7 @@ param(
     [string]$ExpectedPlaylistPath = "/radio/playlist/playlist.m3u8",
     [string]$ExpectedMediaNfsServer = "192.168.2.5",
     [string]$ExpectedMediaNfsPath = "/volume1/Dj/Music",
-    [string]$ExpectedWebUiImage = "ghcr.io/andrehendriks/airadio-webui@sha256:3a6ef010610e98b5d8e0c4a619c474cd5e97daea6d661610fd6f236ce7f755da",
+    [string]$ExpectedWebUiImage = "ghcr.io/andrehendriks/airadio-webui@sha256:b1b1da95075fca653a34f8d9ebb329a719edafd34c7c0075da8d69c95d9535cb",
     [switch]$Offline
 )
 
