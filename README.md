@@ -6,13 +6,18 @@ code must use these **relative, same-origin** paths instead of `localhost`:
 | Browser route | Internal destination |
 | --- | --- |
 | `/` | `airadio-webui.airadio.svc.cluster.local:8080` |
-| `/api/` | `radio-api.airadio.svc.cluster.local:8080` |
+| `/api/` | `airadio-webui.airadio.svc.cluster.local:8080` |
+| `/radio-api/` | `radio-api.airadio.svc.cluster.local:8080` |
 | `/ws/` | `radio-api.airadio.svc.cluster.local:8080` (WebSocket upgrade) |
 | `/stream/` | `radio-api.airadio.svc.cluster.local:8080` by default |
 
 `04-webui-gateway.yaml` is the only public routing layer. It preserves the
 original host and forwards WebSocket upgrade headers. The gateway and
 `radio-api` use Service-DNS, never `localhost`, for pod-to-pod traffic.
+WebUI-owned `/api/*` endpoints (including `/api/status`, `/api/next`,
+`/api/playlist`, `/api/stream`, `/api/files`, and `/api/capabilities`) retain
+their full paths and reach the WebUI service. The separate radio API is
+available only under `/radio-api/`, whose prefix is removed before forwarding.
 Change `API_UPSTREAM`, `STREAM_UPSTREAM`, or `WEBUI_UPSTREAM` in that
 deployment only when a backend is moved to another Kubernetes Service. Each
 value must be a DNS name and port reachable from the gateway.
