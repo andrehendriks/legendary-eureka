@@ -123,6 +123,8 @@ spec:
             - ALL
             add:
             - CHOWN
+            - SETGID
+            - SETUID
         resources:
           requests:
             cpu: 50m
