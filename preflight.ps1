@@ -33,6 +33,7 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($context)) {
 foreach ($resource in @(
     "secret/desktop-stream-vught-eu-tls",
     "secret/airadio-runtime-secrets",
+    "pvc/ollama-pvc",
     "deployment/airadio-webui",
     "deployment/radio-api"
 )) {
@@ -40,6 +41,11 @@ foreach ($resource in @(
     if ($LASTEXITCODE -ne 0) {
         throw "Missing required $resource in namespace $Namespace."
     }
+}
+
+$ollamaPvcPhase = kubectl -n $Namespace get pvc/ollama-pvc -o jsonpath='{.status.phase}'
+if ($ollamaPvcPhase -ne "Bound") {
+    throw "Ollama PVC is not Bound (current phase: '$ollamaPvcPhase'). The standard bundle intentionally preserves its existing immutable PVC specification."
 }
 
 $icecastHost = kubectl -n $Namespace get configmap/airadio-endpoints -o jsonpath='{.data.ICECAST_HOST}'

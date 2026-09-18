@@ -30,7 +30,10 @@ when it is listed; do not replace it with `*`.
 The default `kustomization.yaml` applies only the infrastructure that is
 actually present in this repository. It deliberately does **not** contain a
 WebUI or API Deployment, so `kubectl apply -k .` cannot replace a working API
-with the former `python sleep` placeholder.
+with the former `python sleep` placeholder. It also deliberately does **not**
+manage the immutable `ollama-pvc` specification: it reuses the existing
+`ollama-pvc` unchanged and therefore cannot fail by trying to alter its access
+mode, storage class, or requested capacity.
 
 The API and WebUI example Deployments are contracts, not deployable images.
 Copy each example to a private, ignored production overlay, replace its
@@ -46,14 +49,15 @@ application does not expose the documented endpoint.
 kubectl apply -f 00-namespace.yaml
 kubectl apply -f 04-webui-gateway.yaml
 
-# 3. In a private, access-controlled directory, supply the Icecast credential.
+# 3. Apply the runtime secret individually before any rollout.
+#    ICECAST_PASSWORD must exactly equal Icecast's <source-password>.
 Copy-Item airadio-runtime-secrets.example.yaml airadio-runtime-secrets.yaml
 # Edit airadio-runtime-secrets.yaml; never commit this file.
+kubectl apply -f airadio-runtime-secrets.yaml
 
 # 4. Create/update application Deployments from private copies of:
 #    radio-api.deployment.example.yaml and airadio-webui.deployment.example.yaml
 #    after replacing both example images with immutable image digests.
-kubectl apply -f airadio-runtime-secrets.yaml
 kubectl apply -f radio-api.deployment.production.yaml
 kubectl apply -f airadio-webui.deployment.production.yaml
 
@@ -70,6 +74,22 @@ kubectl -n airadio rollout status deployment/ollama
 kubectl -n airadio rollout status deployment/liquidsoap
 kubectl -n airadio rollout status deployment/airadio-webui-gateway
 ```
+
+The default bundle expects an existing, `Bound` `ollama-pvc`; create it with
+your cluster's storage provisioning process before the first deployment. It
+does not include a PVC manifest because PVC access mode, storage class, and
+capacity are immutable after binding. This preserves the current
+`standard`/`ReadWriteOnce` installation without a PV/PVC deletion or data
+move.
+
+For an intentional migration to the NFS storage defined by this repository,
+`ollama-storage-nfs.migration.yaml` creates a **separate**
+`ollama-pv-nfs`/`ollama-pvc-nfs` pair. It is excluded from the default
+kustomization. Provision and bind it, copy Ollama data while Ollama is stopped,
+then change `02-ollama.yaml`'s `claimName` through a reviewed private overlay
+from `ollama-pvc` to `ollama-pvc-nfs` and roll out the Deployment. Keep the old
+claim and PV until the migrated pod is healthy and the data is verified; this
+repository deliberately provides no destructive deletion command.
 
 The real WebUI must have label `app: airadio-webui`, listen on port `8080`,
 and use only relative `/api`, `/ws`, and `/stream` URLs. The real radio API
@@ -124,7 +144,10 @@ One operator must complete each of these concrete actions before live traffic:
 3. Provision the `desktop-stream-vught-eu-tls` TLS certificate/private key.
 4. Point `desktop.stream-vught.eu` DNS to the ingress public address and map
    TCP 8081 from the host/NAT/firewall to the controller's HTTPS listener.
-5. Select the production `kubectl` context and run `.\preflight.ps1`.
+5. Create and bind `ollama-pvc` through the cluster's storage provisioning
+   process, or complete the documented opt-in NFS migration.
+6. Select the production `kubectl` context, individually apply
+   `airadio-runtime-secrets.yaml`, and run `.\preflight.ps1`.
 
-The unnumbered manifests are retained for compatibility. Deploy the numbered
-resources through `kustomization.yaml`; do not apply both variants.
+The unnumbered manifests are retained for compatibility. Deploy the resources
+in `kustomization.yaml`; `ollama-storage-nfs.migration.yaml` is opt-in only.
