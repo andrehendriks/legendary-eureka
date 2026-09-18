@@ -112,6 +112,8 @@ spec:
           capabilities:
             drop:
             - ALL
+            add:
+            - CHOWN
         resources:
           requests:
             cpu: 50m

@@ -76,6 +76,10 @@ kubectl -n airadio rollout status deployment/airadio-webui
 kubectl -n airadio rollout status deployment/airadio-webui-gateway
 ```
 
+The gateway Service exposes port `8081` (not `8080`). For a direct local
+gateway check, use `kubectl -n airadio port-forward service/airadio-webui-gateway
+8081:8081` and request `http://127.0.0.1:8081/`.
+
 The default bundle expects an existing, `Bound` `ollama-pvc`; create it with
 your cluster's storage provisioning process before the first deployment. It
 does not include a PVC manifest because PVC access mode, storage class, and
