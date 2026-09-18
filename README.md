@@ -103,9 +103,33 @@ resources or namespaces. Liquidsoap exposes its telnet control endpoint only
 via the internal `liquidsoap` ClusterIP Service on port `1234`.
 
 If the GHCR package is private, create a registry credential secret outside
-this repository, then add `imagePullSecrets: [{ name:
-airadio-webui-registry }]` to a reviewed private overlay for the WebUI
-Deployment. Do not create or commit registry credentials here. The real radio API
+this repository only if image pulls fail with an authentication error:
+
+```powershell
+kubectl -n airadio create secret docker-registry airadio-webui-registry `
+  --docker-server=ghcr.io `
+  --docker-username=YOUR_GITHUB_USERNAME `
+  --docker-password=YOUR_GHCR_READ_TOKEN `
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+Then add the following to a reviewed, ignored private overlay for the WebUI
+Deployment:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airadio-webui
+  namespace: airadio
+spec:
+  template:
+    spec:
+      imagePullSecrets:
+      - name: airadio-webui-registry
+```
+
+Do not create or commit registry credentials here. The real radio API
 must have label `app: radio-api`, listen on port `8080`, provide `GET
 /healthz`, and honor `OLLAMA_HOST` and `CORS_ALLOW_ORIGINS`. The WebUI must
 also provide `GET /`. The API image/source remains a hard blocker; the WebUI
